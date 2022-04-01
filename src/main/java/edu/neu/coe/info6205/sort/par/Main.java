@@ -9,6 +9,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.*;
+// import 
 
 /**
  * This code has been fleshed out by Ziyao Qiao. Thanks very much.
@@ -18,43 +20,59 @@ public class Main {
 
     public static void main(String[] args) {
         processArgs(args);
-        System.out.println("Degree of parallelism: " + ForkJoinPool.getCommonPoolParallelism());
-        Random random = new Random();
+        // System.out.println("Degree of parallelism: " + ForkJoinPool.getCommonPoolParallelism());
+        // Random random = new Random();
         int[] array = new int[2000000];
-        ArrayList<Long> timeList = new ArrayList<>();
-        for (int j = 50; j < 100; j++) {
-            ParSort.cutoff = 10000 * (j + 1);
-            // for (int i = 0; i < array.length; i++) array[i] = random.nextInt(10000000);
-            long time;
-            long startTime = System.currentTimeMillis();
-            for (int t = 0; t < 10; t++) {
-                for (int i = 0; i < array.length; i++) array[i] = random.nextInt(10000000);
-                ParSort.sort(array, 0, array.length);
+        int arraySize = 240000;
+        int cutoff = 1000;
+        long[] nArray = new long[10];
+        long averageTime = 0;
+        // ArrayList<Long> timeList = new ArrayList<>();
+        for(int threads = 2; threads < 129; threads= threads*2) {
+            ForkJoinPool pool = new ForkJoinPool(threads);
+            ParSort.pool = pool;
+            System.out.println("Degree of parallelism : " + pool.getParallelism());
+            System.out.println("Array size is " + arraySize);
+            Executor executor = Executors.newFixedThreadPool(threads);
+            Random random = new Random();
+            ArrayList<Long> timeList = new ArrayList<>();
+            int j;
+            for (j = 0; j < 15; j++) {
+                ParSort.cutoff = cutoff * (j + 1);
+                // for (int i = 0; i < array.length; i++) array[i] = random.nextInt(10000000);
+                long time;
+                long startTime = System.currentTimeMillis();
+                for (int t = 0; t < 10; t++) {
+                    for (int i = 0; i < array.length; i++) array[i] = random.nextInt(10000000);
+                    ParSort.sort(array, 0, array.length,executor);
+                }
+                long endTime = System.currentTimeMillis();
+                time = (endTime - startTime);
+                timeList.add(time);
+                // averageTime+= time;
+                // System.out.print("total time : " + averageTime);
+                System.out.println("cutoff：" + (ParSort.cutoff) + "\t\t10times Time:" + time + "ms");
+
             }
-            long endTime = System.currentTimeMillis();
-            time = (endTime - startTime);
-            timeList.add(time);
-
-
-            System.out.println("cutoff：" + (ParSort.cutoff) + "\t\t10times Time:" + time + "ms");
-
-        }
-        try {
-            FileOutputStream fis = new FileOutputStream("./src/result.csv");
-            OutputStreamWriter isr = new OutputStreamWriter(fis);
-            BufferedWriter bw = new BufferedWriter(isr);
-            int j = 0;
-            for (long i : timeList) {
-                String content = (double) 10000 * (j + 1) / 2000000 + "," + (double) i / 10 + "\n";
-                j++;
-                bw.write(content);
-                bw.flush();
+            try {
+                FileOutputStream fis = new FileOutputStream("./src/result.csv");
+                OutputStreamWriter isr = new OutputStreamWriter(fis);
+                BufferedWriter bw = new BufferedWriter(isr);
+                j = 0;  
+                for (long i : timeList) {
+                    String content = (double) cutoff * (j + 1) / arraySize + "," + (double) i / 10 + "\n";
+                    j++;
+                    bw.write(content);
+                    bw.flush();
+                }
+                bw.close();
+    
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-            bw.close();
-
-        } catch (IOException e) {
-            e.printStackTrace();
         }
+        
+        
     }
 
     private static void processArgs(String[] args) {
